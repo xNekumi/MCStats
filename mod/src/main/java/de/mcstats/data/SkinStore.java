@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
@@ -34,6 +35,7 @@ public final class SkinStore {
 
 	private final Path file;
 	private final Map<UUID, Skin> skins = new ConcurrentHashMap<>();
+	private final Set<UUID> fromServer = ConcurrentHashMap.newKeySet(); // Skin kam direkt aus dem Spielerprofil
 	private volatile boolean dirty;
 
 	public SkinStore(Path file) {
@@ -45,33 +47,55 @@ public final class SkinStore {
 		return skins.get(uuid);
 	}
 
+	public int size() {
+		return skins.size();
+	}
+
+	/** Skin aus dem Spielerprofil auf dem Server – hat Vorrang, ein Nachschlagen ist dann unnötig. */
+	public void updateFromServer(UUID uuid, Skin skin) {
+		if (skin == null) return;
+		fromServer.add(uuid);
+		update(uuid, skin);
+	}
+
+	/** Skin, der bei Mojang nachgeschlagen wurde. */
 	public void update(UUID uuid, Skin skin) {
 		if (skin != null && !skin.equals(skins.put(uuid, skin))) {
 			dirty = true;
 		}
 	}
 
+	public boolean isFromServer(UUID uuid) {
+		return fromServer.contains(uuid);
+	}
+
 	/** Liest den Skin aus dem "textures"-Property eines Profils, null wenn keiner gesetzt ist. */
 	public static Skin fromProfile(GameProfile profile) {
 		for (Property property : profile.properties().get("textures")) {
-			try {
-				String json = new String(Base64.getDecoder().decode(property.value()), StandardCharsets.UTF_8);
-				JsonObject skin = JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("textures").getAsJsonObject("SKIN");
-				if (skin == null) continue;
-				String url = skin.get("url").getAsString();
-				String hash = url.substring(url.lastIndexOf('/') + 1).toLowerCase();
-				if (!HASH.matcher(hash).matches()) continue;
-				JsonObject metadata = skin.getAsJsonObject("metadata");
-				boolean slim = metadata != null && metadata.has("model") && "slim".equals(metadata.get("model").getAsString());
-				return new Skin(hash, slim);
-			} catch (RuntimeException e) {
-				// kaputtes Property ignorieren
-			}
+			Skin skin = fromTextures(property.value());
+			if (skin != null) return skin;
 		}
 		return null;
 	}
 
-	public void saveIfDirty() {
+	/** @param base64 Wert eines "textures"-Properties (aus dem Profil oder von Mojangs Session-Server) */
+	public static Skin fromTextures(String base64) {
+		try {
+			String json = new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
+			JsonObject skin = JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("textures").getAsJsonObject("SKIN");
+			if (skin == null) return null;
+			String url = skin.get("url").getAsString();
+			String hash = url.substring(url.lastIndexOf('/') + 1).toLowerCase();
+			if (!HASH.matcher(hash).matches()) return null;
+			JsonObject metadata = skin.getAsJsonObject("metadata");
+			boolean slim = metadata != null && metadata.has("model") && "slim".equals(metadata.get("model").getAsString());
+			return new Skin(hash, slim);
+		} catch (RuntimeException e) {
+			return null; // kaputtes Property ignorieren
+		}
+	}
+
+	public synchronized void saveIfDirty() {
 		if (!dirty) return;
 		dirty = false;
 		JsonObject root = new JsonObject();

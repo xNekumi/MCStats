@@ -141,7 +141,7 @@ public final class StatsService {
 			SkinStore.Skin skin = SkinStore.fromProfile(player.getGameProfile());
 			updates.add(() -> {
 				store(uuid, name, stats, now);
-				skins.update(uuid, skin);
+				skins.updateFromServer(uuid, skin);
 			});
 			if (!player.hasDisconnected()) {
 				nowOnline.add(new OnlinePlayer(uuid, name));
@@ -202,6 +202,24 @@ public final class StatsService {
 
 	public Baseline baseline() {
 		return baseline;
+	}
+
+	public SkinStore skins() {
+		return skins;
+	}
+
+	/** Alle bekannten, nicht versteckten Spieler (UUID -> Minecraft-Name), für das Nachschlagen der Skins. */
+	public Map<UUID, String> knownPlayers() {
+		Map<UUID, String> result = new HashMap<>();
+		for (PlayerRecord record : records.values()) {
+			if (!config.isHidden(record.name(), record.uuid().toString())) result.put(record.uuid(), record.name());
+		}
+		return result;
+	}
+
+	/** Snapshot neu bauen, z.B. nachdem neue Skins gefunden wurden. */
+	public void requestRebuild() {
+		worker.execute(this::rebuild);
 	}
 
 	public void stop() {

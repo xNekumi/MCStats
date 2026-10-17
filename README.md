@@ -108,8 +108,11 @@ Köpfe und Spielerfiguren zeigen den **echten Skin**, so wie ihn der Server im S
 (funktioniert auch mit Skin-Mods). Der Mod merkt sich den Skin jedes Spielers, der seit der Installation
 online war (`world/mcstats/skins.json`). Die Website lädt die Skin-Datei einmalig von
 textures.minecraft.net, speichert sie unter `data/skins/` und schneidet Kopf und Körper im Browser aus.
-Für Spieler, die seit der Installation noch nicht online waren, wird der Kopf über den Namen von
-mc-heads.net geholt.
+Kennt der Server keinen Skin – etwa im **Offline-Mode** oder bei Spielern, die seit der Installation
+nicht online waren – schlägt der Mod ihn bei Mojang nach (per UUID, im Offline-Mode per Spielername;
+höchstens 30 Spieler pro Minute). Spieler ohne gekauften Account bekommen so keinen Skin, außer über
+einen Skin-Mod wie SkinRestorer, dessen Skins der Mod direkt aus dem Profil liest.
+`/mcstats status` zeigt, wie viele Skins bekannt sind.
 
 #### Als Dienst (systemd)
 
@@ -163,7 +166,7 @@ Für Operatoren gibt es im Spiel und in der Server-Konsole:
 
 | Befehl                  | Wirkung |
 |-------------------------|---------|
-| `/mcstats status`       | zeigt, seit wann gezählt wird |
+| `/mcstats status`       | zeigt, seit wann gezählt wird und wie viele Skins bekannt sind |
 | `/mcstats reset`        | zeigt nur eine Warnung |
 | `/mcstats reset confirm`| Ab jetzt zählen nur noch neue Werte, der Feed wird geleert. |
 | `/mcstats reset undo`   | macht den Reset rückgängig, es zählen wieder alle Werte |

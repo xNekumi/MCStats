@@ -42,6 +42,11 @@ public final class McStatsCommand {
 		ctx.getSource().sendSuccess(() -> since == null
 				? Component.literal("[MCStats] Es zählen alle Werte seit Beginn der Welt.").withStyle(ChatFormatting.GRAY)
 				: Component.literal("[MCStats] Gezählt wird seit " + DATE.format(since) + ".").withStyle(ChatFormatting.GRAY), false);
+		int known = stats.skins().size();
+		int players = stats.knownPlayers().size();
+		boolean onlineMode = ctx.getSource().getServer().usesAuthentication();
+		ctx.getSource().sendSuccess(() -> Component.literal("[MCStats] Skins: " + known + " von " + players + " Spielern bekannt · Online-Mode: "
+				+ (onlineMode ? "an" : "aus (Skins werden per Name nachgeschlagen)")).withStyle(ChatFormatting.GRAY), false);
 		return 1;
 	}
 

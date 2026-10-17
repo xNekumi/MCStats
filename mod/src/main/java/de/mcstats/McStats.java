@@ -6,6 +6,7 @@ import de.mcstats.command.McStatsCommand;
 import de.mcstats.config.McStatsConfig;
 import de.mcstats.data.Baseline;
 import de.mcstats.data.FeedService;
+import de.mcstats.data.SkinResolver;
 import de.mcstats.data.SkinStore;
 import de.mcstats.data.StatsReader;
 import de.mcstats.data.StatsService;
@@ -45,6 +46,7 @@ public final class McStats implements ModInitializer {
 	private static StatsService stats;
 	private static TwitchService twitch;
 	private static ApiServer api;
+	private static SkinResolver skinResolver;
 	private static int ticks;
 
 	@Override
@@ -81,9 +83,14 @@ public final class McStats implements ModInitializer {
 		twitch = new TwitchService(config.twitch);
 		stats = new StatsService(server, config, new StatsReader(Set.copyOf(food)), feed, twitch, translations,
 				new Baseline(dataDir.resolve("baseline.json")), new SkinStore(dataDir.resolve("skins.json")));
+		skinResolver = new SkinResolver(stats.skins(), stats::knownPlayers, stats::requestRebuild);
+		if (!server.usesAuthentication()) {
+			LOGGER.info("[MCStats] Server läuft im Offline-Mode – Skins werden per Spielername bei Mojang nachgeschlagen");
+		}
 		api = new ApiServer(config, stats, feed);
 		stats.start();
 		twitch.start();
+		skinResolver.start();
 		try {
 			api.start();
 		} catch (IOException e) {
@@ -94,6 +101,7 @@ public final class McStats implements ModInitializer {
 	private static void stop() {
 		if (api != null) api.stop();
 		if (twitch != null) twitch.stop();
+		if (skinResolver != null) skinResolver.stop();
 		if (stats != null) stats.stop();
 		if (feed != null) feed.save();
 		stats = null;
