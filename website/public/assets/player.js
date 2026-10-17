@@ -1,6 +1,6 @@
 /* Spielerseite: /spieler/<Name> oder /player.html?p=<UUID|Name> */
 (() => {
-	const { cfg, fmt, metrics, el, head, skin, feedItem, getJson, setTitle } = window.MC;
+	const { fmt, metrics, el, head, body, feedItem, getJson, setTitle } = window.MC;
 	const $ = (id) => document.getElementById(id);
 
 	const fromPath = location.pathname.match(/^\/spieler\/([^/]+)/);
@@ -29,9 +29,9 @@
 	function render(p) {
 		document.title = `${p.name} · Spieler-Stats`;
 		$("p-name").textContent = p.name;
-		const body = $("p-body");
-		body.src = skin(cfg.bodyUrl, p.uuid, 270);
-		body.addEventListener("error", () => body.replaceWith(head(p, 96, false)), { once: true });
+		const bodyImg = $("p-body");
+		bodyImg.addEventListener("error", () => bodyImg.replaceWith(head(p, 96, false)), { once: true });
+		body(p, bodyImg);
 
 		$("p-status").replaceChildren(...statusLine(p));
 		if (p.serverOnline === false) banner("Der Minecraft-Server ist gerade offline.", `Du siehst den zuletzt gespeicherten Stand${p.lastContact ? " von " + fmt.when(p.lastContact) : ""}.`);

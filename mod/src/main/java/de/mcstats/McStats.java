@@ -6,6 +6,7 @@ import de.mcstats.command.McStatsCommand;
 import de.mcstats.config.McStatsConfig;
 import de.mcstats.data.Baseline;
 import de.mcstats.data.FeedService;
+import de.mcstats.data.SkinStore;
 import de.mcstats.data.StatsReader;
 import de.mcstats.data.StatsService;
 import de.mcstats.text.TextRenderer;
@@ -78,7 +79,8 @@ public final class McStats implements ModInitializer {
 		Path dataDir = server.getWorldPath(LevelResource.ROOT).resolve("mcstats");
 		feed = new FeedService(dataDir.resolve("feed.json"), config.feedSize);
 		twitch = new TwitchService(config.twitch);
-		stats = new StatsService(server, config, new StatsReader(Set.copyOf(food)), feed, twitch, translations, new Baseline(dataDir.resolve("baseline.json")));
+		stats = new StatsService(server, config, new StatsReader(Set.copyOf(food)), feed, twitch, translations,
+				new Baseline(dataDir.resolve("baseline.json")), new SkinStore(dataDir.resolve("skins.json")));
 		api = new ApiServer(config, stats, feed);
 		stats.start();
 		twitch.start();
@@ -143,6 +145,7 @@ public final class McStats implements ModInitializer {
 		object.addProperty("uuid", player.getStringUUID());
 		object.addProperty("name", config.displayName(name));
 		object.addProperty("minecraft", name);
+		StatsService.addSkin(object, SkinStore.fromProfile(player.getGameProfile()));
 		return object;
 	}
 }

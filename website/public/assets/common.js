@@ -79,13 +79,126 @@
 	}
 
 	const playerUrl = (p) => `/spieler/${encodeURIComponent(p.minecraft || p.name)}`;
-	const skin = (tpl, uuid, size) => tpl.replace("{uuid}", encodeURIComponent(uuid || "")).replace("{size}", String(size));
+
+	/** Fallback-Bild (z.B. mc-heads.net), wenn der Server den Skin nicht kennt. */
+	const fallbackUrl = (tpl, player, size) => tpl
+		.replace("{uuid}", encodeURIComponent((player && player.uuid) || ""))
+		.replace("{name}", encodeURIComponent((player && (player.minecraft || player.name)) || "MHF_Steve"))
+		.replace("{size}", String(size));
+
+	// ------------------------------------------------------------------ Skins
+	// Der Mod liefert den Textur-Hash des echten Skins; die Website lädt die Skin-Datei über
+	// /skin/<hash>.png und schneidet Kopf und Körper hier im Browser aus.
+
+	const skinCache = new Map(); // hash -> Promise<{ head, body }>
+
+	function renderSkin(hash, slim) {
+		const key = hash + (slim ? ":slim" : "");
+		if (!skinCache.has(key)) {
+			skinCache.set(key, new Promise((resolve, reject) => {
+				const img = new Image();
+				img.crossOrigin = "anonymous";
+				img.onload = () => {
+					try {
+						const hat = hasHatLayer(img);
+						resolve({ head: drawHead(img, hat), body: drawBody(img, slim, hat) });
+					} catch (err) {
+						reject(err);
+					}
+				};
+				img.onerror = reject;
+				img.src = cfg.apiBase.replace(/\/$/, "") + "/skin/" + hash + ".png";
+			}));
+		}
+		return skinCache.get(key);
+	}
+
+	function canvas(w, h) {
+		const c = document.createElement("canvas");
+		c.width = w;
+		c.height = h;
+		const ctx = c.getContext("2d");
+		ctx.imageSmoothingEnabled = false;
+		return [c, ctx];
+	}
+
+	/**
+	 * Wie Minecraft: Ist bei alten 64×32-Skins der Hut-Bereich komplett deckend, gilt er als
+	 * durchsichtig (sonst hätte z.B. Notch einen schwarzen Kasten auf dem Kopf).
+	 */
+	function hasHatLayer(img) {
+		if (img.height !== 32) return true;
+		const [, ctx] = canvas(32, 16);
+		ctx.drawImage(img, 32, 0, 32, 16, 0, 0, 32, 16);
+		const data = ctx.getImageData(0, 0, 32, 16).data;
+		for (let i = 3; i < data.length; i += 4) if (data[i] < 128) return true;
+		return false;
+	}
+
+	/** Gesicht (8×8) plus Hut-Ebene darüber. */
+	function drawHead(img, hat) {
+		const [c, ctx] = canvas(8, 8);
+		ctx.drawImage(img, 8, 8, 8, 8, 0, 0, 8, 8);
+		if (hat) ctx.drawImage(img, 40, 8, 8, 8, 0, 0, 8, 8);
+		return c.toDataURL();
+	}
+
+	/** Vorderansicht des ganzen Körpers (16×32), mit allen Ebenen. Alte 64×32-Skins werden gespiegelt ergänzt. */
+	function drawBody(img, slim, hat) {
+		const [c, ctx] = canvas(16, 32);
+		const legacy = img.height === 32;
+		const arm = slim ? 3 : 4;
+		const part = (sx, sy, w, h, dx, dy, mirror = false) => {
+			if (!mirror) return ctx.drawImage(img, sx, sy, w, h, dx, dy, w, h);
+			ctx.save();
+			ctx.translate(dx + w, dy);
+			ctx.scale(-1, 1);
+			ctx.drawImage(img, sx, sy, w, h, 0, 0, w, h);
+			ctx.restore();
+		};
+		// Grundebene
+		part(8, 8, 8, 8, 4, 0);                                   // Kopf
+		part(20, 20, 8, 12, 4, 8);                                // Oberkörper
+		part(44, 20, arm, 12, 4 - arm, 8);                        // rechter Arm (links im Bild)
+		part(4, 20, 4, 12, 4, 20);                                // rechtes Bein
+		if (legacy) {
+			part(44, 20, arm, 12, 12, 8, true);                   // linker Arm = gespiegelt
+			part(4, 20, 4, 12, 8, 20, true);                      // linkes Bein = gespiegelt
+		} else {
+			part(36, 52, arm, 12, 12, 8);                         // linker Arm
+			part(20, 52, 4, 12, 8, 20);                           // linkes Bein
+		}
+		// Zweite Ebene (Hut, Jacke, Ärmel, Hosen)
+		if (hat) part(40, 8, 8, 8, 4, 0);
+		if (!legacy) {
+			part(20, 36, 8, 12, 4, 8);
+			part(44, 36, arm, 12, 4 - arm, 8);
+			part(52, 52, arm, 12, 12, 8);
+			part(4, 36, 4, 12, 4, 20);
+			part(4, 52, 4, 12, 8, 20);
+		}
+		return c.toDataURL();
+	}
 
 	function head(player, size = 32, lazy = true) {
 		const img = el("img", { class: "head", alt: "", width: size, height: size, decoding: "async", loading: lazy ? "lazy" : null });
-		img.src = skin(cfg.headUrl, player && player.uuid, size * 2);
-		img.addEventListener("error", () => img.classList.add("head--missing"), { once: true });
+		const fallback = () => {
+			img.addEventListener("error", () => img.classList.add("head--missing"), { once: true });
+			img.src = fallbackUrl(cfg.headUrl, player, size * 2);
+		};
+		if (player && player.skin) {
+			renderSkin(player.skin, player.slim).then((r) => (img.src = r.head), fallback);
+		} else {
+			fallback();
+		}
 		return img;
+	}
+
+	/** Ganzkörper-Bild für die Spielerseite. */
+	function body(player, img) {
+		const fallback = () => (img.src = fallbackUrl(cfg.bodyUrl, player, 270));
+		if (player.skin) renderSkin(player.skin, player.slim).then((r) => (img.src = r.body), fallback);
+		else fallback();
 	}
 
 	function playerLink(player, cls = "plink") {
@@ -224,5 +337,5 @@
 		}
 	});
 
-	window.MC = { cfg, api, fmt, metrics, el, head, playerLink, playerUrl, skin, feedItem, getJson, connect, store, setTitle };
+	window.MC = { cfg, api, fmt, metrics, el, head, body, playerLink, playerUrl, feedItem, getJson, connect, store, setTitle };
 })();

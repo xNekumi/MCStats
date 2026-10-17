@@ -351,6 +351,53 @@ async function handleApi(req, res, pathname) {
 	return sendJson(res, 404, { error: "Unbekannter Endpunkt" });
 }
 
+// ------------------------------------------------------------------ Skins
+
+const SKIN_DIR = path.join(config.dataDir, "skins");
+const SKIN_HASH = /^[0-9a-f]{16,128}$/;
+const skinDownloads = new Map(); // hash -> Promise, damit parallele Anfragen nur einmal laden
+
+/** Holt eine Skin-Textur von Mojang und legt sie dauerhaft ab (der Hash ändert sich nie). */
+function loadSkin(hash) {
+	const file = path.join(SKIN_DIR, hash + ".png");
+	if (!skinDownloads.has(hash)) {
+		const task = (async () => {
+			try {
+				return await fsp.readFile(file);
+			} catch {
+				const res = await fetch(`https://textures.minecraft.net/texture/${hash}`, { signal: AbortSignal.timeout(8000) });
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				const data = Buffer.from(await res.arrayBuffer());
+				// PNG-Signatur prüfen und Größe begrenzen – Skins sind wenige KB groß
+				if (data.length > 256 * 1024 || data.readUInt32BE(0) !== 0x89504e47) throw new Error("keine gültige Skin-Datei");
+				await fsp.mkdir(SKIN_DIR, { recursive: true });
+				await fsp.writeFile(file, data);
+				return data;
+			}
+		})();
+		skinDownloads.set(hash, task);
+		task.finally(() => skinDownloads.delete(hash)).catch(() => {});
+	}
+	return skinDownloads.get(hash);
+}
+
+async function handleSkin(req, res, hash) {
+	if (!SKIN_HASH.test(hash)) return notFound(res);
+	try {
+		const data = await loadSkin(hash);
+		res.writeHead(200, {
+			"Content-Type": "image/png",
+			"Content-Length": data.length,
+			"Cache-Control": "public, max-age=31536000, immutable",
+			"Access-Control-Allow-Origin": "*", // für <canvas>, falls die Seite woanders liegt
+		});
+		res.end(req.method === "HEAD" ? undefined : data);
+	} catch {
+		res.writeHead(404, { "Cache-Control": "no-store" });
+		res.end();
+	}
+}
+
 async function handleStatic(req, res, pathname) {
 	let file = pathname;
 	if (file.startsWith("/spieler/")) file = "/player.html"; // hübsche Spieler-URLs, der Name wird im Browser gelesen
@@ -392,6 +439,8 @@ const server = http.createServer(async (req, res) => {
 		}
 		const { pathname } = new URL(req.url, "http://localhost");
 		if (pathname.startsWith("/api/")) return await handleApi(req, res, pathname);
+		const skin = pathname.match(/^\/skin\/([^/]+)\.png$/);
+		if (skin) return await handleSkin(req, res, skin[1]);
 		let decoded;
 		try {
 			decoded = decodeURIComponent(pathname);

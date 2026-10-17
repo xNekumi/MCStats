@@ -100,7 +100,16 @@ node server.js                        # oder: npm start
 Alle Werte lassen sich auch per Umgebungsvariable setzen: `PORT`, `HOST`, `MOD_URL`, `MOD_TOKEN`, `DATA_DIR`.
 
 Aussehen und Bestenlisten anpassen: `website/public/config.js` (Titel, welche Bestenlisten in welcher
-Reihenfolge, Quelle der Skin-Köpfe). Texte und Design liegen in `website/public/`.
+Reihenfolge, Fallback für Skin-Köpfe). Texte und Design liegen in `website/public/`.
+
+#### Skins
+
+Köpfe und Spielerfiguren zeigen den **echten Skin**, so wie ihn der Server im Spielerprofil sieht
+(funktioniert auch mit Skin-Mods). Der Mod merkt sich den Skin jedes Spielers, der seit der Installation
+online war (`world/mcstats/skins.json`). Die Website lädt die Skin-Datei einmalig von
+textures.minecraft.net, speichert sie unter `data/skins/` und schneidet Kopf und Körper im Browser aus.
+Für Spieler, die seit der Installation noch nicht online waren, wird der Kopf über den Namen von
+mc-heads.net geholt.
 
 #### Als Dienst (systemd)
 
@@ -191,4 +200,4 @@ Zum Testen startet `./gradlew runServer` einen Entwicklungsserver mit dem Mod.
 ## Hinweise
 
 - Kein offizielles Minecraft-Produkt, nicht von Mojang oder Microsoft genehmigt oder mit ihnen verbunden.
-- Die Spielerköpfe kommen standardmäßig von [mc-heads.net](https://mc-heads.net) (in `website/public/config.js` änderbar).
+- Nur als Fallback kommen Spielerköpfe von [mc-heads.net](https://mc-heads.net) (in `website/public/config.js` änderbar).

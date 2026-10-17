@@ -64,6 +64,7 @@ public final class StatsService {
 	private final TwitchService twitch;
 	private final Translations translations;
 	private final Baseline baseline;
+	private final SkinStore skins;
 	private final Path statsDir;
 	private final Path advancementsDir;
 	private final ExecutorService worker = Executors.newSingleThreadExecutor(Thread.ofPlatform().name("mcstats-worker").daemon().factory());
@@ -79,7 +80,7 @@ public final class StatsService {
 	private int ticks;
 	private int lastPlayerCount = -1;
 
-	public StatsService(MinecraftServer server, McStatsConfig config, StatsReader reader, FeedService feed, TwitchService twitch, Translations translations, Baseline baseline) {
+	public StatsService(MinecraftServer server, McStatsConfig config, StatsReader reader, FeedService feed, TwitchService twitch, Translations translations, Baseline baseline, SkinStore skins) {
 		this.server = server;
 		this.config = config;
 		this.reader = reader;
@@ -87,6 +88,7 @@ public final class StatsService {
 		this.twitch = twitch;
 		this.translations = translations;
 		this.baseline = baseline;
+		this.skins = skins;
 		this.statsDir = server.getWorldPath(LevelResource.PLAYER_STATS_DIR);
 		this.advancementsDir = server.getWorldPath(LevelResource.PLAYER_ADVANCEMENTS_DIR);
 	}
@@ -136,7 +138,11 @@ public final class StatsService {
 			UUID uuid = player.getUUID();
 			String name = player.getGameProfile().name();
 			JsonObject stats = StatsReader.statsObject(((ServerStatsCounterInvoker) player.getStats()).mcstats$toJson().getAsJsonObject());
-			updates.add(() -> store(uuid, name, stats, now));
+			SkinStore.Skin skin = SkinStore.fromProfile(player.getGameProfile());
+			updates.add(() -> {
+				store(uuid, name, stats, now);
+				skins.update(uuid, skin);
+			});
 			if (!player.hasDisconnected()) {
 				nowOnline.add(new OnlinePlayer(uuid, name));
 			}
@@ -144,6 +150,7 @@ public final class StatsService {
 		return () -> {
 			updates.forEach(Runnable::run);
 			online = List.copyOf(nowOnline);
+			skins.saveIfDirty();
 		};
 	}
 
@@ -381,7 +388,15 @@ public final class StatsService {
 		object.addProperty("uuid", uuid.toString());
 		object.addProperty("name", config.displayName(name));
 		object.addProperty("minecraft", name);
+		addSkin(object, skins.get(uuid));
 		return object;
+	}
+
+	/** Textur-Hash des Skins, damit die Website den echten Kopf zeigen kann. */
+	public static void addSkin(JsonObject object, SkinStore.Skin skin) {
+		if (skin == null) return;
+		object.addProperty("skin", skin.hash());
+		if (skin.slim()) object.addProperty("slim", true);
 	}
 
 	// ---------------------------------------------------------------- HTTP-Threads
