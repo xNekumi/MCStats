@@ -41,6 +41,12 @@
 
 	// ------------------------------------------------------------------ Überblick
 
+	function renderSince(s) {
+		const node = $("since");
+		node.hidden = !s.countingSince;
+		if (s.countingSince) node.textContent = `Gezählt wird seit ${fmt.date(s.countingSince)}`;
+	}
+
 	function renderFigures(s) {
 		$("fig-online").textContent = fmt.num(s.onlineCount);
 		$("fig-online-sub").textContent = s.live && s.live.length ? `${s.live.length} live auf Twitch` : `von max. ${fmt.num(s.maxPlayers)}`;
@@ -153,6 +159,7 @@
 		snapshot = s;
 		store.set("snapshot", s);
 		setTitle(s);
+		renderSince(s);
 		renderFigures(s);
 		renderOnline(s);
 		renderBoards(s);

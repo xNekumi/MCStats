@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * GET /api/feed           letzte Tode und Fortschritte
  * GET /api/players        alle Spieler
  * GET /api/player/{id}    Details eines Spielers (UUID oder Name)
- * GET /api/live           Server-Sent Events: "hello", "stats", "event"
+ * GET /api/live           Server-Sent Events: "hello", "stats", "event", "feed" (Feed ersetzt, z.B. nach Reset)
  * </pre>
  */
 public final class ApiServer {
@@ -54,6 +54,7 @@ public final class ApiServer {
 		this.token = config.apiToken.isEmpty() ? null : ("Bearer " + config.apiToken).getBytes(StandardCharsets.UTF_8);
 		stats.onSnapshot(json -> broadcast(sse("stats", json)));
 		feed.onEvent(event -> broadcast(sse("event", GSON.toJson(event))));
+		feed.onClear(() -> broadcast(sse("feed", "[]")));
 	}
 
 	public void start() throws IOException {

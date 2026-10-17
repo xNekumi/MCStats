@@ -148,6 +148,24 @@ Für die „LIVE“-Anzeige eine App unter <https://dev.twitch.tv/console/apps> 
 }
 ```
 
+## Stats zurücksetzen (z.B. zum Projektstart)
+
+Für Operatoren gibt es im Spiel und in der Server-Konsole:
+
+| Befehl                  | Wirkung |
+|-------------------------|---------|
+| `/mcstats status`       | zeigt, seit wann gezählt wird |
+| `/mcstats reset`        | zeigt nur eine Warnung |
+| `/mcstats reset confirm`| Ab jetzt zählen nur noch neue Werte, der Feed wird geleert. |
+| `/mcstats reset undo`   | macht den Reset rückgängig, es zählen wieder alle Werte |
+
+Die **Minecraft-Statistiken im Spiel bleiben dabei unverändert**. Der Mod merkt sich nur die Werte zum
+Zeitpunkt des Resets (`world/mcstats/baseline.json`) und zieht sie ab. Auch Fortschritte zählen nur, wenn
+sie nach dem Reset geschafft wurden. Spieler, die seit dem Reset noch nicht online waren, tauchen
+nicht in Listen und Zählern auf. Die Website zeigt „Gezählt wird seit …“.
+
+Der alte Feed wird als `world/mcstats/feed-vor-reset.json` gesichert. Ein Undo stellt ihn nicht wieder her.
+
 ## API
 
 Die Website stellt dieselbe API wie der Mod bereit, ergänzt um `serverOnline` und `lastContact`.
@@ -158,7 +176,7 @@ Die Website stellt dieselbe API wie der Mod bereit, ergänzt um `serverOnline` u
 | `GET /api/feed`         | letzte Tode und Fortschritte |
 | `GET /api/players`      | alle Spieler mit Spielzeit und „zuletzt online“ |
 | `GET /api/player/{id}`  | Details eines Spielers (UUID oder Name) |
-| `GET /api/live`         | Server-Sent Events: `hello`, `stats`, `event` (und auf der Website `status`) |
+| `GET /api/live`         | Server-Sent Events: `hello`, `stats`, `event`, `feed` (und auf der Website `status`) |
 
 ## Bauen
 

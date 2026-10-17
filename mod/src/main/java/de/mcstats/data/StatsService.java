@@ -55,7 +55,7 @@ public final class StatsService {
 
 	private record OnlinePlayer(UUID uuid, String name) {}
 
-	private record AdvancementCount(long modified, int count) {}
+	private record AdvancementCache(long modified, Set<String> done) {}
 
 	private final MinecraftServer server;
 	private final McStatsConfig config;
@@ -63,12 +63,13 @@ public final class StatsService {
 	private final FeedService feed;
 	private final TwitchService twitch;
 	private final Translations translations;
+	private final Baseline baseline;
 	private final Path statsDir;
 	private final Path advancementsDir;
 	private final ExecutorService worker = Executors.newSingleThreadExecutor(Thread.ofPlatform().name("mcstats-worker").daemon().factory());
 
 	private final Map<UUID, PlayerRecord> records = new ConcurrentHashMap<>();
-	private final Map<UUID, AdvancementCount> advancementCache = new HashMap<>(); // nur Worker-Thread
+	private final Map<UUID, AdvancementCache> advancementCache = new HashMap<>(); // nur Worker-Thread
 	private final List<Consumer<String>> listeners = new CopyOnWriteArrayList<>();
 
 	private volatile Set<String> countedAdvancements = Set.of();
@@ -78,13 +79,14 @@ public final class StatsService {
 	private int ticks;
 	private int lastPlayerCount = -1;
 
-	public StatsService(MinecraftServer server, McStatsConfig config, StatsReader reader, FeedService feed, TwitchService twitch, Translations translations) {
+	public StatsService(MinecraftServer server, McStatsConfig config, StatsReader reader, FeedService feed, TwitchService twitch, Translations translations, Baseline baseline) {
 		this.server = server;
 		this.config = config;
 		this.reader = reader;
 		this.feed = feed;
 		this.twitch = twitch;
 		this.translations = translations;
+		this.baseline = baseline;
 		this.statsDir = server.getWorldPath(LevelResource.PLAYER_STATS_DIR);
 		this.advancementsDir = server.getWorldPath(LevelResource.PLAYER_ADVANCEMENTS_DIR);
 	}
@@ -118,6 +120,15 @@ public final class StatsService {
 	}
 
 	private void refresh() {
+		Runnable capture = captureOnline();
+		worker.execute(() -> {
+			capture.run();
+			rebuild();
+		});
+	}
+
+	/** Liest die Stats der Online-Spieler (Server-Thread); das Ergebnis wird auf dem Worker übernommen. */
+	private Runnable captureOnline() {
 		List<OnlinePlayer> nowOnline = new ArrayList<>();
 		List<Runnable> updates = new ArrayList<>();
 		long now = System.currentTimeMillis();
@@ -130,11 +141,60 @@ public final class StatsService {
 				nowOnline.add(new OnlinePlayer(uuid, name));
 			}
 		}
-		worker.execute(() -> {
+		return () -> {
 			updates.forEach(Runnable::run);
 			online = List.copyOf(nowOnline);
-			rebuild();
+		};
+	}
+
+	/**
+	 * Setzt den Startpunkt auf die aktuellen Werte aller Spieler und leert den Feed.
+	 * Danach zählt nur noch, was neu dazukommt. Aufruf auf dem Server-Thread.
+	 *
+	 * @param done bekommt null bei Erfolg oder die Fehlermeldung; läuft auf dem Server-Thread
+	 */
+	public void reset(Consumer<String> done) {
+		Runnable capture = captureOnline();
+		worker.execute(() -> {
+			String error = null;
+			try {
+				capture.run();
+				Map<UUID, Baseline.Entry> entries = new HashMap<>();
+				for (PlayerRecord record : records.values()) {
+					entries.put(record.uuid(), new Baseline.Entry(record.rawStats().deepCopy(), Set.copyOf(record.rawAdvancements())));
+				}
+				baseline.create(entries);
+				feed.clear();
+				recomputeAll();
+				LOGGER.info("[MCStats] Stats zurückgesetzt, gezählt wird ab jetzt ({} Spieler)", entries.size());
+			} catch (Exception e) {
+				LOGGER.error("[MCStats] Reset fehlgeschlagen", e);
+				error = e.toString();
+			}
+			String result = error;
+			server.execute(() -> done.accept(result));
 		});
+	}
+
+	/** Entfernt den Startpunkt wieder, es zählen wieder alle Werte. Der geleerte Feed bleibt leer. */
+	public void undoReset(Consumer<String> done) {
+		worker.execute(() -> {
+			String error = null;
+			try {
+				baseline.clear();
+				recomputeAll();
+				LOGGER.info("[MCStats] Reset rückgängig gemacht");
+			} catch (Exception e) {
+				LOGGER.error("[MCStats] Rückgängig machen fehlgeschlagen", e);
+				error = e.toString();
+			}
+			String result = error;
+			server.execute(() -> done.accept(result));
+		});
+	}
+
+	public Baseline baseline() {
+		return baseline;
 	}
 
 	public void stop() {
@@ -193,32 +253,47 @@ public final class StatsService {
 		return names;
 	}
 
-	private void store(UUID uuid, String name, JsonObject stats, long lastSeen) {
-		records.put(uuid, new PlayerRecord(uuid, name, reader.compute(stats, countAdvancements(uuid)), stats, lastSeen));
+	private void store(UUID uuid, String name, JsonObject rawStats, long lastSeen) {
+		put(uuid, name, rawStats, doneAdvancements(uuid), lastSeen);
 	}
 
-	private int countAdvancements(UUID uuid) {
+	private void put(UUID uuid, String name, JsonObject rawStats, Set<String> rawAdvancements, long lastSeen) {
+		JsonObject stats = baseline.apply(uuid, rawStats);
+		int advancements = baseline.apply(uuid, rawAdvancements).size();
+		records.put(uuid, new PlayerRecord(uuid, name, reader.compute(stats, advancements), stats, lastSeen, rawStats, rawAdvancements));
+	}
+
+	/** Nach Reset/Undo alle Spieler mit dem neuen Startpunkt neu berechnen. */
+	private void recomputeAll() {
+		for (PlayerRecord record : List.copyOf(records.values())) {
+			put(record.uuid(), record.name(), record.rawStats(), record.rawAdvancements(), record.lastSeen());
+		}
+		rebuild();
+	}
+
+	private Set<String> doneAdvancements(UUID uuid) {
 		Path file = advancementsDir.resolve(uuid + ".json");
 		try {
-			if (!Files.exists(file)) return 0;
+			if (!Files.exists(file)) return Set.of();
 			long modified = Files.getLastModifiedTime(file).toMillis();
-			AdvancementCount cached = advancementCache.get(uuid);
+			AdvancementCache cached = advancementCache.get(uuid);
 			if (cached != null && cached.modified() == modified) {
-				return cached.count();
+				return cached.done();
 			}
 			Set<String> counted = countedAdvancements;
-			int count = 0;
+			Set<String> done = new HashSet<>();
 			JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
 			for (Entry<String, JsonElement> entry : root.entrySet()) {
 				if (entry.getValue().isJsonObject() && counted.contains(entry.getKey())) {
-					JsonElement done = entry.getValue().getAsJsonObject().get("done");
-					if (done != null && done.getAsBoolean()) count++;
+					JsonElement flag = entry.getValue().getAsJsonObject().get("done");
+					if (flag != null && flag.getAsBoolean()) done.add(entry.getKey());
 				}
 			}
-			advancementCache.put(uuid, new AdvancementCount(modified, count));
-			return count;
+			Set<String> result = Set.copyOf(done);
+			advancementCache.put(uuid, new AdvancementCache(modified, result));
+			return result;
 		} catch (Exception e) {
-			return 0;
+			return Set.of();
 		}
 	}
 
@@ -234,6 +309,8 @@ public final class StatsService {
 		root.addProperty("motd", server.getMotd());
 		root.addProperty("maxPlayers", server.getPlayerList().getMaxPlayers());
 		root.addProperty("playerCount", visible.size());
+		Instant countingSince = baseline.createdAt();
+		root.addProperty("countingSince", countingSince != null ? countingSince.toString() : null);
 
 		JsonArray onlineArray = new JsonArray();
 		for (OnlinePlayer player : online) {
@@ -290,10 +367,11 @@ public final class StatsService {
 		}
 	}
 
+	/** Ohne versteckte Spieler und ohne die, die seit einem Reset noch nicht gespielt haben. */
 	private List<PlayerRecord> visiblePlayers() {
 		List<PlayerRecord> list = new ArrayList<>();
 		for (PlayerRecord record : records.values()) {
-			if (!config.isHidden(record.name(), record.uuid().toString())) list.add(record);
+			if (record.get(Metric.PLAYTIME) > 0 && !config.isHidden(record.name(), record.uuid().toString())) list.add(record);
 		}
 		return list;
 	}
@@ -356,6 +434,8 @@ public final class StatsService {
 		if (playerRanks != null) playerRanks.forEach((metric, rank) -> rankObject.addProperty(metric.key, rank));
 		root.add("ranks", rankObject);
 		root.addProperty("playerCount", visiblePlayers().size());
+		Instant countingSince = baseline.createdAt();
+		root.addProperty("countingSince", countingSince != null ? countingSince.toString() : null);
 
 		root.add("mined", top(StatsReader.category(record.stats(), "mined"), 12, "block"));
 		root.add("killed", top(StatsReader.category(record.stats(), "killed"), 12, "entity"));

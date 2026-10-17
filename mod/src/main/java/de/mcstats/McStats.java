@@ -2,7 +2,9 @@ package de.mcstats;
 
 import com.google.gson.JsonObject;
 import de.mcstats.api.ApiServer;
+import de.mcstats.command.McStatsCommand;
 import de.mcstats.config.McStatsConfig;
+import de.mcstats.data.Baseline;
 import de.mcstats.data.FeedService;
 import de.mcstats.data.StatsReader;
 import de.mcstats.data.StatsService;
@@ -14,6 +16,7 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -52,6 +55,7 @@ public final class McStats implements ModInitializer {
 		text = new TextRenderer(translations);
 
 		ServerLifecycleEvents.SERVER_STARTED.register(McStats::start);
+		CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> McStatsCommand.register(dispatcher, () -> stats));
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> stop());
 		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resources, success) -> {
 			if (stats != null) stats.refreshAdvancementIds();
@@ -71,9 +75,10 @@ public final class McStats implements ModInitializer {
 			}
 		}
 
-		feed = new FeedService(server.getWorldPath(LevelResource.ROOT).resolve("mcstats").resolve("feed.json"), config.feedSize);
+		Path dataDir = server.getWorldPath(LevelResource.ROOT).resolve("mcstats");
+		feed = new FeedService(dataDir.resolve("feed.json"), config.feedSize);
 		twitch = new TwitchService(config.twitch);
-		stats = new StatsService(server, config, new StatsReader(Set.copyOf(food)), feed, twitch, translations);
+		stats = new StatsService(server, config, new StatsReader(Set.copyOf(food)), feed, twitch, translations, new Baseline(dataDir.resolve("baseline.json")));
 		api = new ApiServer(config, stats, feed);
 		stats.start();
 		twitch.start();

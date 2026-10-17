@@ -30,6 +30,7 @@ public final class FeedService {
 	private final int maxSize;
 	private final Deque<JsonObject> events = new ArrayDeque<>();
 	private final List<Consumer<JsonObject>> listeners = new CopyOnWriteArrayList<>();
+	private final List<Runnable> clearListeners = new CopyOnWriteArrayList<>();
 	private boolean dirty;
 
 	public FeedService(Path file, int maxSize) {
@@ -40,6 +41,26 @@ public final class FeedService {
 
 	public void onEvent(Consumer<JsonObject> listener) {
 		listeners.add(listener);
+	}
+
+	public void onClear(Runnable listener) {
+		clearListeners.add(listener);
+	}
+
+	/** Leert den Feed. Die bisherigen Einträge landen in feed-vor-reset.json. */
+	public void clear() throws IOException {
+		String backup;
+		synchronized (this) {
+			backup = GSON.toJson(new ArrayList<>(events));
+			events.clear();
+			dirty = true;
+		}
+		Files.createDirectories(file.getParent());
+		Files.writeString(file.resolveSibling("feed-vor-reset.json"), backup, StandardCharsets.UTF_8);
+		save();
+		for (Runnable listener : clearListeners) {
+			listener.run();
+		}
 	}
 
 	public void add(JsonObject event) {

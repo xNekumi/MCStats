@@ -222,6 +222,17 @@ async function liveLoop() {
 	}
 }
 
+/** Nach /mcstats reset (oder undo) sind gespeicherte Spielerdetails veraltet. */
+function setStats(stats) {
+	const before = state.stats && state.stats.countingSince;
+	state.stats = stats;
+	if (stats && (stats.countingSince ?? null) !== (before ?? null) && before !== undefined) {
+		playerCache.clear();
+		playerIds.clear();
+		refreshPlayers();
+	}
+}
+
 function handleSse(block) {
 	let event = "message";
 	const data = [];
@@ -237,16 +248,19 @@ function handleSse(block) {
 		return;
 	}
 	if (event === "hello") {
-		state.stats = payload.stats;
-		for (const e of [...(payload.feed || [])].reverse()) addEvent(e);
+		setStats(payload.stats);
+		state.feed = (payload.feed || []).slice(0, FEED_SIZE); // der Mod ist die Quelle, z.B. nach einem Reset
 		refreshPlayers();
 		broadcast("stats", publicStats());
 		broadcast("feed", state.feed);
 	} else if (event === "stats") {
-		state.stats = payload;
+		setStats(payload);
 		broadcast("stats", publicStats());
 	} else if (event === "event") {
 		if (addEvent(payload)) broadcast("event", payload);
+	} else if (event === "feed") {
+		state.feed = Array.isArray(payload) ? payload.slice(0, FEED_SIZE) : [];
+		broadcast("feed", state.feed);
 	}
 	scheduleSave();
 }

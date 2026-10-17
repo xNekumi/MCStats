@@ -36,7 +36,8 @@
 		$("p-status").replaceChildren(...statusLine(p));
 		if (p.serverOnline === false) banner("Der Minecraft-Server ist gerade offline.", `Du siehst den zuletzt gespeicherten Stand${p.lastContact ? " von " + fmt.when(p.lastContact) : ""}.`);
 		const m = p.metrics;
-		$("p-summary").textContent = `${fmt.duration(m.playtime)} gespielt · ${fmt.num(m.deaths)} ${m.deaths === 1 ? "Tod" : "Tode"} · ${fmt.num(m.advancements)} Fortschritte`;
+		$("p-summary").textContent = `${fmt.duration(m.playtime)} gespielt · ${fmt.num(m.deaths)} ${m.deaths === 1 ? "Tod" : "Tode"} · ${fmt.num(m.advancements)} Fortschritte`
+			+ (p.countingSince ? ` (seit ${fmt.date(p.countingSince)})` : "");
 		if (p.live) {
 			$("p-twitch").replaceChildren(el("a", { class: "chip chip--live", href: `https://www.twitch.tv/${encodeURIComponent(p.live.login)}`, target: "_blank", rel: "noopener" },
 				el("span", { class: "livetag" }, el("span", { class: "dot" }), "LIVE"), p.live.title));
