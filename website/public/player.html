@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Spieler</title>
+	<meta name="theme-color" content="#14161f">
+	<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="/assets/style.css">
+	<script src="/config.js"></script>
+	<script src="/assets/common.js" defer></script>
+	<script src="/assets/player.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a>
+<header class="topbar">
+	<div class="wrap topbar__inner">
+		<a class="brand" href="/"><img src="/assets/favicon.svg" alt="" width="28" height="28"><span data-server-name>Server-Stats</span></a>
+		<nav class="nav" aria-label="Hauptnavigation">
+			<a href="/">Übersicht</a>
+			<a href="/spieler.html">Alle Spieler</a>
+		</nav>
+	</div>
+</header>
+
+<main id="main" class="wrap">
+	<p class="crumbs"><a href="/spieler.html">← Alle Spieler</a></p>
+	<section class="profile" id="profile" hidden>
+		<img class="profile__body" id="p-body" alt="" width="120" height="270">
+		<div class="profile__info">
+			<p class="eyebrow" id="p-status"></p>
+			<h1 id="p-name"></h1>
+			<p class="lead" id="p-summary"></p>
+			<p id="p-twitch"></p>
+		</div>
+	</section>
+	<div class="banner" id="banner" hidden><strong id="banner-title"></strong> <span id="banner-text"></span></div>
+
+	<section aria-labelledby="h-metrics" id="metrics-section" hidden>
+		<h2 id="h-metrics" class="section-head">Kennzahlen</h2>
+		<dl class="metrics" id="metrics"></dl>
+	</section>
+
+	<div class="tops" id="tops"></div>
+
+	<div class="split" id="details" hidden>
+		<section class="card" aria-labelledby="h-pfeed">
+			<header class="card__head"><h2 id="h-pfeed">Zuletzt passiert</h2></header>
+			<ol class="feed" id="feed"></ol>
+			<p class="empty" id="feed-empty" hidden>Noch keine Tode oder Fortschritte aufgezeichnet.</p>
+		</section>
+		<section class="card" aria-labelledby="h-all">
+			<header class="card__head"><h2 id="h-all">Alle Statistiken</h2><p class="card__sub">So, wie Minecraft sie zählt</p></header>
+			<input class="search" id="all-filter" type="search" placeholder="Filtern …" aria-label="Statistiken filtern">
+			<table class="table"><tbody id="all"></tbody></table>
+		</section>
+	</div>
+</main>
+
+<footer class="footer">
+	<div class="wrap footer__inner">
+		<p>Daten direkt vom Server, gesammelt mit dem MCStats-Mod.</p>
+		<p class="muted">Kein offizielles Minecraft-Produkt. Nicht von Mojang oder Microsoft genehmigt oder mit ihnen verbunden.</p>
+	</div>
+</footer>
+</body>
+</html>

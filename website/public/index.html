@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Live-Stats</title>
+	<meta name="description" content="Live-Statistiken vom Minecraft-Server: wer ist online, wer spielt am meisten, wer stirbt am häufigsten.">
+	<meta name="theme-color" content="#14161f">
+	<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="/assets/style.css">
+	<script src="/config.js"></script>
+	<script src="/assets/common.js" defer></script>
+	<script src="/assets/home.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a>
+<header class="topbar">
+	<div class="wrap topbar__inner">
+		<a class="brand" href="/"><img src="/assets/favicon.svg" alt="" width="28" height="28"><span data-server-name>Server-Stats</span></a>
+		<nav class="nav" aria-label="Hauptnavigation">
+			<a href="/">Übersicht</a>
+			<a href="/spieler.html">Alle Spieler</a>
+		</nav>
+	</div>
+</header>
+
+<main id="main" class="wrap" data-state="loading">
+	<section class="hero">
+		<p class="eyebrow"><span class="pulse" aria-hidden="true"></span><span id="status-text">Verbinde mit dem Server …</span></p>
+		<h1>Was läuft auf <span data-server-name>dem Server</span>?</h1>
+		<p class="lead">Wer gerade spielt, wer die meisten Stunden reinsteckt und wer am häufigsten am Spawn aufwacht – direkt aus der Welt, live aktualisiert.</p>
+		<div class="banner" id="banner" hidden>
+			<strong id="banner-title"></strong>
+			<span id="banner-text"></span>
+		</div>
+		<noscript><div class="banner"><strong>JavaScript ist aus.</strong> <span>Die Zahlen kommen live vom Server und brauchen JavaScript.</span></div></noscript>
+	</section>
+
+	<section aria-labelledby="h-overview">
+		<h2 id="h-overview" class="sr-only">Überblick</h2>
+		<dl class="figures">
+			<div class="figure"><dt>Online</dt><dd id="fig-online">–</dd><small id="fig-online-sub">&nbsp;</small></div>
+			<div class="figure"><dt>Spieler insgesamt</dt><dd id="fig-players">–</dd><small>schon mal da gewesen</small></div>
+			<div class="figure"><dt>Stunden gespielt</dt><dd id="fig-hours">–</dd><small>alle zusammen</small></div>
+			<div class="figure"><dt>Tode</dt><dd id="fig-deaths">–</dd><small id="fig-deaths-sub">&nbsp;</small></div>
+		</dl>
+	</section>
+
+	<aside class="fact" id="fact" hidden>
+		<span class="fact__label">Schon gewusst?</span>
+		<p class="fact__text" id="fact-text"></p>
+		<button class="btn btn--ghost" id="fact-next" type="button">Nächster Fakt</button>
+	</aside>
+
+	<div class="split">
+		<section class="card" aria-labelledby="h-online">
+			<header class="card__head">
+				<h2 id="h-online">Gerade online <span class="count" id="online-count"></span></h2>
+			</header>
+			<ul class="chips" id="online"></ul>
+			<p class="empty" id="online-empty" hidden></p>
+		</section>
+
+		<section class="card" aria-labelledby="h-feed">
+			<header class="card__head">
+				<h2 id="h-feed">Neuigkeiten aus der Welt</h2>
+				<p class="card__sub">Tode und Fortschritte, frisch vom Server</p>
+			</header>
+			<ol class="feed" id="feed" aria-live="polite"></ol>
+			<p class="empty" id="feed-empty" hidden></p>
+		</section>
+	</div>
+
+	<section aria-labelledby="h-boards">
+		<header class="section-head">
+			<h2 id="h-boards">Bestenlisten</h2>
+			<p>Top 10 je Kategorie – ein Klick auf den Namen öffnet die Spielerseite.</p>
+		</header>
+		<div class="boards" id="boards"></div>
+	</section>
+</main>
+
+<footer class="footer">
+	<div class="wrap footer__inner">
+		<p>Daten direkt vom Server, gesammelt mit dem MCStats-Mod.</p>
+		<p class="muted">Kein offizielles Minecraft-Produkt. Nicht von Mojang oder Microsoft genehmigt oder mit ihnen verbunden.</p>
+	</div>
+</footer>
+</body>
+</html>

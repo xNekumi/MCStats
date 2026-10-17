@@ -1,0 +1,7 @@
+{
+	"port": 3000,
+	"host": "0.0.0.0",
+	"modUrl": "http://127.0.0.1:8765",
+	"modToken": "hier-denselben-apiToken-wie-im-Mod-eintragen",
+	"dataDir": "data"
+}

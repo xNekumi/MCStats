@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "mcstats",
+	"version": "${version}",
+	"name": "MCStats",
+	"description": "Sammelt Spieler-Statistiken, Tode und Fortschritte und stellt sie über eine JSON-API und eine Live-Stats-Website bereit.",
+	"authors": ["xNekumi"],
+	"contact": {
+		"sources": "https://github.com/xNekumi/MCStats"
+	},
+	"license": "MIT",
+	"environment": "server",
+	"entrypoints": {
+		"main": ["de.mcstats.McStats"]
+	},
+	"mixins": ["mcstats.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

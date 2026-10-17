@@ -1,0 +1,10 @@
+mod/.gradle/
+mod/build/
+mod/run/
+mod/out/
+mod/.idea/
+*.iml
+.DS_Store
+website/config.json
+website/data/
+website/node_modules/
