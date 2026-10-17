@@ -4,6 +4,8 @@ Live-Statistiken für einen **Minecraft 26.3 Fabric-Server**: wer ist online, we
 wer stirbt am häufigsten, wer baut die meisten Diamanten ab – plus ein Live-Feed mit Toden und
 Fortschritten und eine eigene Seite für jeden Spieler.
 
+![Vorschau der Website](docs/vorschau.png)
+
 Das Projekt besteht aus zwei unabhängigen Teilen:
 
 ```
