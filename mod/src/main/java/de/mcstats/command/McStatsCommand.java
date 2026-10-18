@@ -3,6 +3,7 @@ package de.mcstats.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import de.mcstats.data.StatsService;
+import de.mcstats.tab.TabListFooter;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -14,7 +15,7 @@ import net.minecraft.network.chat.Component;
 
 /**
  * <pre>
- * /mcstats status          ab wann gezählt wird
+ * /mcstats status          TPS, ab wann gezählt wird, bekannte Skins
  * /mcstats reset           Warnung anzeigen
  * /mcstats reset confirm   Startpunkt auf jetzt setzen, Feed leeren
  * /mcstats reset undo      Startpunkt entfernen, wieder alles zählen
@@ -26,18 +27,20 @@ public final class McStatsCommand {
 
 	private McStatsCommand() {}
 
-	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, Supplier<StatsService> stats) {
+	/** @param performance liefert die TPS-Zeile für /mcstats status */
+	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, Supplier<StatsService> stats, TabListFooter performance) {
 		dispatcher.register(Commands.literal("mcstats")
 				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-				.then(Commands.literal("status").executes(ctx -> status(ctx, stats.get())))
+				.then(Commands.literal("status").executes(ctx -> status(ctx, stats.get(), performance)))
 				.then(Commands.literal("reset")
 						.executes(McStatsCommand::warn)
 						.then(Commands.literal("confirm").executes(ctx -> reset(ctx, stats.get())))
 						.then(Commands.literal("undo").executes(ctx -> undo(ctx, stats.get())))));
 	}
 
-	private static int status(CommandContext<CommandSourceStack> ctx, StatsService stats) {
+	private static int status(CommandContext<CommandSourceStack> ctx, StatsService stats, TabListFooter performance) {
 		if (notReady(ctx, stats)) return 0;
+		ctx.getSource().sendSuccess(() -> Component.literal("[MCStats] ").withStyle(ChatFormatting.GRAY).append(performance.footer(ctx.getSource().getServer())), false);
 		var since = stats.baseline().createdAt();
 		ctx.getSource().sendSuccess(() -> since == null
 				? Component.literal("[MCStats] Es zählen alle Werte seit Beginn der Welt.").withStyle(ChatFormatting.GRAY)

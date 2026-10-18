@@ -10,6 +10,7 @@ import de.mcstats.data.SkinResolver;
 import de.mcstats.data.SkinStore;
 import de.mcstats.data.StatsReader;
 import de.mcstats.data.StatsService;
+import de.mcstats.tab.TabListFooter;
 import de.mcstats.text.TextRenderer;
 import de.mcstats.text.Translations;
 import de.mcstats.twitch.TwitchService;
@@ -47,6 +48,7 @@ public final class McStats implements ModInitializer {
 	private static TwitchService twitch;
 	private static ApiServer api;
 	private static SkinResolver skinResolver;
+	private static TabListFooter tabList;
 	private static int ticks;
 
 	@Override
@@ -56,14 +58,16 @@ public final class McStats implements ModInitializer {
 		translations = new Translations();
 		translations.loadAsync(config.language, configDir.resolve("lang"));
 		text = new TextRenderer(translations);
+		tabList = config.tabList.showTps ? new TabListFooter(config.tabList.showMspt) : null;
 
 		ServerLifecycleEvents.SERVER_STARTED.register(McStats::start);
-		CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> McStatsCommand.register(dispatcher, () -> stats));
+		CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> McStatsCommand.register(dispatcher, () -> stats, new TabListFooter(true)));
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> stop());
 		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resources, success) -> {
 			if (stats != null) stats.refreshAdvancementIds();
 		});
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
+			if (tabList != null) tabList.tick(server);
 			if (stats == null) return;
 			stats.tick();
 			if (++ticks % 1200 == 0) Thread.ofVirtual().start(feed::save);

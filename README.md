@@ -76,6 +76,8 @@ Voraussetzungen: Minecraft **26.3**, Fabric Loader **≥ 0.19.5**, [Fabric API](
 | `hiddenPlayers`  | `[]`          | Namen oder UUIDs, die nirgends auftauchen sollen (Admins, Bots). |
 | `displayNames`   | `{}`          | Anzeigenamen: `{"Minecraftname": "Name auf der Website"}` |
 | `twitch`         | aus           | Optional: Live-Anzeige für Streamer, siehe unten. |
+| `tabList.showTps`  | `true`      | TPS als Fußzeile unter der Tab-Liste (Liste bleibt im Standarddesign). Ausschalten, wenn ein anderer Mod die Tab-Liste gestaltet. |
+| `tabList.showMspt` | `true`      | Zusätzlich die Millisekunden pro Tick anzeigen. |
 
 ### 2. Website
 
@@ -166,7 +168,7 @@ Für Operatoren gibt es im Spiel und in der Server-Konsole:
 
 | Befehl                  | Wirkung |
 |-------------------------|---------|
-| `/mcstats status`       | zeigt, seit wann gezählt wird und wie viele Skins bekannt sind |
+| `/mcstats status`       | zeigt TPS, seit wann gezählt wird und wie viele Skins bekannt sind |
 | `/mcstats reset`        | zeigt nur eine Warnung |
 | `/mcstats reset confirm`| Ab jetzt zählen nur noch neue Werte, der Feed wird geleert. |
 | `/mcstats reset undo`   | macht den Reset rückgängig, es zählen wieder alle Werte |

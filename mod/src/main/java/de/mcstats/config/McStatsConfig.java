@@ -50,6 +50,17 @@ public final class McStatsConfig {
 	/** Optionale Anzeigenamen: Minecraft-Name -> Name auf der Website. */
 	public Map<String, String> displayNames = new LinkedHashMap<>();
 	public Twitch twitch = new Twitch();
+	public TabList tabList = new TabList();
+
+	public static final class TabList {
+		/**
+		 * TPS als Fußzeile unter der Tab-Liste anzeigen; die Liste bleibt im Minecraft-Standarddesign.
+		 * Ausschalten, wenn ein anderer Mod (z.B. Styled Player List) die Tab-Liste gestaltet.
+		 */
+		public boolean showTps = true;
+		/** Zusätzlich die MSPT (Millisekunden pro Tick) anzeigen. */
+		public boolean showMspt = true;
+	}
 
 	public static final class Twitch {
 		/** Twitch-Integration aktivieren ("Live"-Anzeige). Braucht eine App auf dev.twitch.tv. */
@@ -92,6 +103,7 @@ public final class McStatsConfig {
 		if (displayNames == null) displayNames = new LinkedHashMap<>();
 		if (twitch == null) twitch = new Twitch();
 		if (twitch.channels == null) twitch.channels = new LinkedHashMap<>();
+		if (tabList == null) tabList = new TabList();
 		refreshSeconds = Math.max(5, refreshSeconds);
 		feedSize = Math.clamp(feedSize, 10, 1000);
 		maxLiveClients = Math.max(1, maxLiveClients);
